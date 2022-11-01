@@ -8,6 +8,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/bloom42/rz-go"
 	"github.com/bloom42/rz-go/log"
@@ -121,12 +122,41 @@ func (ifc *ImageFluxClient) Do(req *http.Request) (*http.Response, error) {
 }
 
 type Statistics struct {
-	CUMReports []CUMReport `json:"cum_reports,omitempty"`
+	Ok         bool   `json:"ok"`
+	Error      string `json:"error"`
+	Statistics struct {
+		Summary struct {
+			TotalCount   StatisticsSummary `json:"totalCount"`
+			CachedCount  StatisticsSummary `json:"cachedCount"`
+			FailureCount StatisticsSummary `json:"failureCount"`
+			InboundBits  StatisticsSummary `json:"inboundBits"`
+			OutboundBits StatisticsSummary `json:"outboundBits"`
+			HitRatio     StatisticsSummary `json:"hitRatio"`
+		} `json:"summary"`
+		Reports           []StatisticsReport           `json:"reports"`
+		CumulativeReports []StatisticsCumulativeReport `json:"cumulativeReports"`
+	} `json:"statistics"`
 }
 
-type CUMReport struct {
-	Time                 string `json:"time,omitempty"`
-	CachedOutboundBytes  int64  `json:"cached_outbound_bytes,omitempty"`
-	FailureOutboundBytes int64  `json:"failure_outbound_bytes,omitempty"`
-	MissedOutboundBytes  int64  `json:"missed_outbound_bytes,omitempty"`
+type StatisticsSummary struct {
+	Cur float64 `json:"cur"`
+	Min float64 `json:"min"`
+	Avg float64 `json:"avg"`
+	Max float64 `json:"max"`
+}
+
+type StatisticsReport struct {
+	Time         time.Time `json:"time"`
+	TotalCount   float64   `json:"totalCount"`
+	CachedCount  float64   `json:"cachedCount"`
+	FailureCount float64   `json:"failureCount"`
+	InboundBits  float64   `json:"inboundBits"`
+	OutboundBits float64   `json:"outboundBits"`
+}
+
+type StatisticsCumulativeReport struct {
+	Time                 time.Time `json:"time"`
+	CachedOutboundBytes  int64     `json:"cachedOutboundBytes"`
+	MissedOutboundBytes  int64     `json:"missedOutboundBytes"`
+	FailureOutboundBytes int64     `json:"failureOutboundBytes"`
 }

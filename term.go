@@ -25,8 +25,16 @@ func (m Month) StartDate() string {
 	return m.t.Format("2006-01-02")
 }
 
+func (m Month) StartDateTime() string {
+	return m.t.Format("2006-01-02T00:00:00.000Z")
+}
+
 func (m Month) EndDate() string {
 	return m.t.AddDate(0, 1, 0).Format("2006-01-02")
+}
+
+func (m Month) EndDateTime() string {
+	return m.t.AddDate(0, 1, 0).Format("2006-01-02T00:00:00.000Z")
 }
 
 func (m Month) String() string {

@@ -1,9 +1,9 @@
 package reporter
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -30,6 +30,13 @@ func NewRateReporter(ctx context.Context, client *ImageFluxClient, origins []Ori
 	}
 
 	return r, nil
+}
+
+type StatisticsPayload struct {
+	OriginId int    `json:"originId,omitempty"`
+	Interval int    `json:"interval,omitempty"`
+	From     string `json:"from,omitempty"`
+	To       string `json:"to,omitempty"`
 }
 
 type RateReport struct {
@@ -105,22 +112,29 @@ func (r *RateReporter) Run(ctx context.Context, month Month) (*RateReports, erro
 }
 
 func (r *RateReporter) getOriginTransfers(origin Origin, month Month, ctx context.Context) (int64, error) {
-	query := url.Values{}
-	query.Set("id", fmt.Sprintf("%d", origin.Id))
-	query.Set("gteq", month.StartDate())
-	query.Set("lt", month.EndDate())
+	payload := StatisticsPayload{
+		OriginId: origin.Id,
+		Interval: 3,
+		From:     month.StartDateTime(),
+		To:       month.EndDateTime(),
+	}
 
-	uri, err := r.client.BuildURL("statistics/daily", query)
+	payloadData, err := json.Marshal(payload)
 	if err != nil {
 		return 0, err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", uri.String(), nil)
+	uri, err := r.client.BuildURL(".ui-api/statistics.summarized", url.Values{})
 	if err != nil {
 		return 0, err
 	}
 
-	log.Debug("waiting for response", rz.String("url", uri.String()))
+	req, err := http.NewRequestWithContext(ctx, "POST", uri.String(), bytes.NewReader(payloadData))
+	if err != nil {
+		return 0, err
+	}
+
+	log.Debug("waiting for response", rz.String("url", uri.String()), rz.Any("payload", payload))
 	res, err := r.client.Do(req)
 	if err != nil {
 		return 0, err
@@ -143,15 +157,15 @@ func (r *RateReporter) getOriginTransfers(origin Origin, month Month, ctx contex
 		return 0, err
 	}
 
-	if len(stats.CUMReports) < 1 {
+	if len(stats.Statistics.CumulativeReports) < 1 {
 		return int64(0), nil
 	}
 
-	latestReport := stats.CUMReports[len(stats.CUMReports)-1]
+	latestReport := stats.Statistics.CumulativeReports[len(stats.Statistics.CumulativeReports)-1]
 	log.Debug(
 		"report",
 		rz.Int("id", origin.Id),
-		rz.String("time", latestReport.Time),
+		rz.Time("time", latestReport.Time),
 		rz.Int64("cached_outbound_bytes", latestReport.CachedOutboundBytes),
 		rz.Int64("failure_outbound_bytes", latestReport.FailureOutboundBytes),
 		rz.Int64("missed_outbound_bytes", latestReport.MissedOutboundBytes),
